@@ -1,6 +1,13 @@
 import openai
 import streamlit as st
 import http.client
+import pinecone
+pinecone.init(api_key="d37c4793-4a04-4eac-86af-d6a9f0e280f5", environment="asia-southeast1-gcp-free")
+
+index_name = 'knowledge-base'
+
+index = pinecone.Index(index_name)
+
 
 conn = http.client.HTTPSConnection("api.courier.com")
 
@@ -11,18 +18,6 @@ with st.sidebar:
 
 payload = ""
 
-headers = {
-    'Content-Type': "application/json",
-    'User-Agent': "insomnia/8.3.0",
-    'Authorization': "Bearer " + courier_api_key
-    }
-
-conn.request("POST", "/debug", payload, headers)
-
-res = conn.getresponse()
-data = res.read()
-
-print(data.decode("utf-8"))
 
 
 st.title("🐦 BirdWatch")
@@ -56,7 +51,15 @@ if prompt := st.chat_input():
 
     embedding = response_from_open_ai.get('data')[0].get('embedding')
 
+    query_response = index.query(
+        top_k=2,
+        include_metadata=True,
+        vector=embedding,
+    )
+
+    print('query_response', query_response)
+
     response = openai.ChatCompletion.create(model="gpt-3.5-turbo", messages=st.session_state.messages)
     msg = response.choices[0].message
     st.session_state.messages.append(msg)
-    st.chat_message("assistant").write(msg.content)
+    st.chat_message("assistant").write(query_response)
